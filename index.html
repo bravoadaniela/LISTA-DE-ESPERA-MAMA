@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lista de Espera Mama</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --page:#f6f6f4; --surface:#fcfcfb; --ink:#141416; --ink-2:#4f4e55; --muted:#86858c;
+  --grid:#e4e3de; --axis:#c6c5bf; --line:rgba(20,20,22,.10);
+  --accent:#9c2f5b; --accent-soft:#f6e6ed;
+  --s1:#2a78d6; --s2:#eb6834;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --example-bg:#fff4d6; --example-ink:#6b4a00;
+  --sans:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --page:#0f0f10; --surface:#1a1a19; --ink:#f4f3f1; --ink-2:#c3c2b7; --muted:#8e8d88;
+    --grid:#2c2c2a; --axis:#3a3a37; --line:rgba(255,255,255,.10);
+    --accent:#e27aa3; --accent-soft:#3a1f2b;
+    --s1:#3987e5; --s2:#d95926;
+    --example-bg:#3a2e10; --example-ink:#f3d58a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0f0f10; --surface:#1a1a19; --ink:#f4f3f1; --ink-2:#c3c2b7; --muted:#8e8d88;
+  --grid:#2c2c2a; --axis:#3a3a37; --line:rgba(255,255,255,.10);
+  --accent:#e27aa3; --accent-soft:#3a1f2b;
+  --s1:#3987e5; --s2:#d95926;
+  --example-bg:#3a2e10; --example-ink:#f3d58a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 48px;display:flex;flex-direction:column;gap:20px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{margin:2px 0 0;font-size:28px;line-height:1.15;font-weight:700;text-wrap:balance}
+.sub{color:var(--ink-2);margin:4px 0 0;max-width:62ch}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px;border-radius:8px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#1a1a19}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.primary{color:#1a1a19}}
+.btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.banner{display:flex;gap:10px;align-items:flex-start;background:var(--example-bg);color:var(--example-ink);padding:10px 14px;border-radius:8px;font-size:13px}
+.banner b{font-weight:700}
+.banner.ok{background:var(--accent-soft);color:var(--ink)}
+.drop{border:1.5px dashed var(--axis);border-radius:10px;padding:14px;text-align:center;color:var(--ink-2);font-size:13px}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.filters label{display:flex;flex-direction:column;gap:3px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.filters select,.filters input{font:inherit;font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);background:var(--page);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:150px}
+.filters input{min-width:0;width:90px}
+.filters .count{margin-left:auto;font-size:13px;color:var(--ink-2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.kpi .lbl{font-size:12px;color:var(--ink-2);font-weight:500}
+.kpi .val{font-size:30px;font-weight:700;line-height:1.1}
+.kpi .val small{font-size:14px;font-weight:500;color:var(--ink-2);margin-left:4px}
+.kpi .note{font-size:12px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line);width:fit-content}
+.pill i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:820px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h2{margin:0;font-size:15px;font-weight:600}
+.card .desc{margin:0;font-size:12.5px;color:var(--ink-2)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.legend i.ln{height:2px;width:14px;border-radius:1px}
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font-family:var(--sans);font-size:11px;fill:var(--muted)}
+.chart text.v{fill:var(--ink-2);font-family:var(--mono);font-size:11px}
+.chart text.cat{fill:var(--ink-2);font-size:12px}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12px;padding:6px 9px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-110%);z-index:5;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.tip b{font-family:var(--mono);font-weight:500}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 10px;border-bottom:1px solid var(--axis)}
+td{padding:7px 10px;border-bottom:1px solid var(--grid);white-space:nowrap}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.sev{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+details summary{cursor:pointer;color:var(--ink-2);font-size:13px}
+code{font-family:var(--mono);font-size:12px;background:var(--page);padding:1px 5px;border-radius:4px}
+.help{font-size:13px;color:var(--ink-2)}
+.help ul{margin:6px 0;padding-left:18px}
+footer{font-size:12px;color:var(--muted)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Estadística de la lista de espera</div>
+      <h1>Lista de Espera Mama</h1>
+      <p class="sub">Tiempos de espera, volumen pendiente y flujo mensual de ingresos y atenciones. Carga tu planilla para ver tus propios datos; el archivo se procesa solo en tu navegador.</p>
+    </div>
+    <div class="actions">
+      <input type="file" id="file" accept=".csv,.xlsx,.xls,.txt" hidden>
+      <button class="btn primary" id="btnLoad">Cargar CSV o Excel</button>
+      <button class="btn" id="btnDemo">Ver datos de ejemplo</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner"></div>
+  <div class="drop" id="drop">También puedes arrastrar tu archivo aquí.</div>
+
+  <div class="filters">
+    <label for="fProc">Procedimiento<select id="fProc"></select></label>
+    <label for="fPrio">Prioridad<select id="fPrio"></select></label>
+    <label for="fEst">Establecimiento<select id="fEst"></select></label>
+    <label for="fUmbral">Umbral (días)<input id="fUmbral" type="number" min="1" value="90"></label>
+    <div class="count" id="count"></div>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Antigüedad de los casos pendientes</h2>
+      <p class="desc">Casos en espera según días transcurridos desde el ingreso.</p>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Dentro del umbral</span><span><i style="background:var(--serious)"></i>Sobre el umbral</span></div>
+      <div class="chart" id="cHist"></div>
+    </div>
+    <div class="card">
+      <h2>Ingresos y atenciones por mes</h2>
+      <p class="desc">Si los ingresos superan a las atenciones, la lista crece.</p>
+      <div class="legend"><span><i class="ln" style="background:var(--s1)"></i>Ingresos</span><span><i class="ln" style="background:var(--s2)"></i>Atenciones</span></div>
+      <div class="chart" id="cFlow"></div>
+    </div>
+    <div class="card">
+      <h2>Pendientes por procedimiento</h2>
+      <p class="desc">Número de casos en espera y mediana de días entre paréntesis.</p>
+      <div class="chart" id="cProc"></div>
+    </div>
+    <div class="card">
+      <h2>Pendientes por prioridad</h2>
+      <p class="desc">Número de casos en espera y mediana de días entre paréntesis.</p>
+      <div class="chart" id="cPrio"></div>
+    </div>
+    <div class="card">
+      <h2>Pendientes por establecimiento</h2>
+      <p class="desc">Número de casos en espera y mediana de días entre paréntesis.</p>
+      <div class="chart" id="cEst"></div>
+    </div>
+    <div class="card">
+      <h2>Pendientes por tramo de edad</h2>
+      <p class="desc">Edad de las pacientes en espera.</p>
+      <div class="chart" id="cEdad"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Casos con mayor tiempo de espera</h2>
+    <p class="desc">Los 15 casos pendientes más antiguos con los filtros actuales.</p>
+    <div class="tablewrap"><table id="tTop"></table></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Formato del archivo</summary>
+      <div class="help">
+        <p>Una fila por caso. Se reconocen estas columnas (sin importar mayúsculas ni tildes); solo <code>fecha_ingreso</code> es obligatoria:</p>
+        <ul>
+          <li><code>id</code> identificador o RUT</li>
+          <li><code>fecha_ingreso</code> fecha de ingreso a la lista (AAAA-MM-DD o DD/MM/AAAA)</li>
+          <li><code>fecha_atencion</code> fecha en que se resolvió; vacía si sigue pendiente</li>
+          <li><code>estado</code> Pendiente, Atendida o Cancelada (si falta, se deduce de la fecha de atención)</li>
+          <li><code>prioridad</code>, <code>procedimiento</code>, <code>establecimiento</code>, <code>edad</code></li>
+        </ul>
+        <p>La planilla <code>plantilla_lista_espera.csv</code> del repositorio sirve de modelo. Separador <code>;</code> o <code>,</code>.</p>
+      </div>
+    </details>
+  </div>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+var DAY=864e5;
+var TODAY=new Date(); TODAY.setHours(0,0,0,0);
+var state={rows:[],source:"demo",fileName:""};
+var $=function(id){return document.getElementById(id)};
+var fmt=function(n){return n.toLocaleString("es-CL")};
+var pct=function(n){return (n*100).toLocaleString("es-CL",{maximumFractionDigits:1})+" %"};
+
+/* ---------- datos de ejemplo (deterministas) ---------- */
+function demoRows(){
+  var seed=7; function r(){seed=(seed*16807)%2147483647;return (seed-1)/2147483646}
+  function pick(a,w){var t=r()*w.reduce(function(x,y){return x+y}),i=0;while(t>w[i]){t-=w[i];i++}return a[i]}
+  var procs=["Mamografía","Ecografía mamaria","Consulta mastología","Biopsia","Cirugía mama"];
+  var procW=[40,25,18,10,7];
+  var ests=["Hospital Base","CESFAM Norte","CESFAM Sur","CESFAM Oriente"];
+  var prios=["Alta","Media","Baja"];
+  var rows=[],start=new Date(TODAY.getTime()-540*DAY);
+  for(var i=0;i<780;i++){
+    var ing=new Date(start.getTime()+Math.floor(Math.pow(r(),0.8)*538)*DAY);
+    var proc=pick(procs,procW),prio=pick(prios,[18,47,35]);
+    var speed={Alta:35,Media:95,Baja:170}[prio]*(proc==="Cirugía mama"?1.6:1);
+    var wait=Math.round(-Math.log(1-r()*0.98)*speed*0.8+5);
+    var att=new Date(ing.getTime()+wait*DAY),estado="Atendida",fa=att;
+    if(att>TODAY){estado="Pendiente";fa=null}
+    else if(r()<0.07){estado="Cancelada"}
+    rows.push({id:"EJ-"+String(i+1).padStart(4,"0"),ingreso:ing,atencion:fa,estado:estado,prioridad:prio,
+      procedimiento:proc,establecimiento:pick(ests,[40,22,20,18]),edad:Math.round(38+r()*38)});
+  }
+  return rows;
+}
+
+/* ---------- lectura de archivos ---------- */
+function norm(s){return String(s==null?"":s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")}
+var ALIASES={
+  id:["id","rut","run","paciente","folio","n","numero","nro"],
+  ingreso:["fecha_ingreso","ingreso","fecha_de_ingreso","fecha_entrada","fecha_solicitud","f_ingreso","fecha_inclusion"],
+  atencion:["fecha_atencion","atencion","fecha_egreso","egreso","fecha_resolucion","fecha_de_atencion","f_egreso","fecha_salida"],
+  estado:["estado","situacion","status"],
+  prioridad:["prioridad","priority","urgencia"],
+  procedimiento:["procedimiento","prestacion","examen","tipo","especialidad"],
+  establecimiento:["establecimiento","centro","origen","cesfam","hospital","establecimiento_origen"],
+  edad:["edad","age"]
+};
+function parseDate(v){
+  if(v==null||v==="")return null;
+  if(v instanceof Date)return isNaN(v)?null:new Date(v.getFullYear(),v.getMonth(),v.getDate());
+  if(typeof v==="number"){var d=new Date(Math.round((v-25569)*DAY));return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())}
+  var s=String(v).trim(),m;
+  if((m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/)))return new Date(+m[1],m[2]-1,+m[3]);
+  if((m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/))){var y=+m[3];if(y<100)y+=2000;return new Date(y,m[2]-1,+m[1])}
+  return null;
+}
+function cap(s){s=String(s||"").trim();return s?s.charAt(0).toUpperCase()+s.slice(1):""}
+function toRows(objs){
+  if(!objs.length)throw new Error("El archivo no tiene filas.");
+  var keys=Object.keys(objs[0]),map={};
+  Object.keys(ALIASES).forEach(function(k){
+    for(var i=0;i<keys.length;i++){if(ALIASES[k].indexOf(norm(keys[i]))>=0){map[k]=keys[i];break}}
+  });
+  if(!map.ingreso)throw new Error("No encontré la columna de fecha de ingreso. Las columnas del archivo son: "+keys.join(", ")+".");
+  var out=[],skipped=0;
+  objs.forEach(function(o,i){
+    var ing=parseDate(o[map.ingreso]);
+    if(!ing){skipped++;return}
+    var at=map.atencion?parseDate(o[map.atencion]):null;
+    var est=map.estado?norm(o[map.estado]):"";
+    var estado= /cancel|anul|rechaz|egreso_sin|desist/.test(est)?"Cancelada":
+               /pend|espera|activ|vigente/.test(est)?"Pendiente":
+               /atend|resuel|realiz|cerr|egres/.test(est)?"Atendida":
+               (at?"Atendida":"Pendiente");
+    if(estado==="Pendiente")at=null;
+    var edad=map.edad?parseFloat(String(o[map.edad]).replace(",",".")):NaN;
+    out.push({id:map.id?String(o[map.id]):String(i+1),ingreso:ing,atencion:at,estado:estado,
+      prioridad:cap(map.prioridad?o[map.prioridad]:"")||"Sin dato",
+      procedimiento:cap(map.procedimiento?o[map.procedimiento]:"")||"Sin dato",
+      establecimiento:cap(map.establecimiento?o[map.establecimiento]:"")||"Sin dato",
+      edad:isNaN(edad)?null:edad});
+  });
+  if(!out.length)throw new Error("Ninguna fila tiene una fecha de ingreso válida.");
+  return {rows:out,skipped:skipped};
+}
+function parseCSV(text){
+  text=text.replace(/^﻿/,"");
+  var first=text.split(/\r?\n/)[0]||"";
+  var sep=(first.split(";").length>first.split(",").length)?";":(first.indexOf("\t")>=0&&first.split("\t").length>first.split(",").length?"\t":",");
+  var rows=[],row=[],f="",q=false;
+  for(var i=0;i<text.length;i++){
+    var c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;
+    else if(c===sep){row.push(f);f=""}
+    else if(c==="\n"||c==="\r"){if(c==="\r"&&text[i+1]==="\n")i++;row.push(f);rows.push(row);row=[];f=""}
+    else f+=c;
+  }
+  if(f!==""||row.length){row.push(f);rows.push(row)}
+  rows=rows.filter(function(r){return r.some(function(x){return x.trim()!==""})});
+  var h=rows.shift()||[];
+  return rows.map(function(r){var o={};h.forEach(function(k,j){o[k]=r[j]});return o});
+}
+function loadFile(file){
+  var name=file.name,ext=name.split(".").pop().toLowerCase();
+  var rd=new FileReader();
+  rd.onerror=function(){showError("No pude leer el archivo.")};
+  rd.onload=function(){
+    try{
+      var objs;
+      if(ext==="xlsx"||ext==="xls"){
+        if(!window.XLSX)throw new Error("No se pudo cargar el lector de Excel. Guarda la planilla como CSV y vuelve a intentarlo.");
+        var wb=XLSX.read(rd.result,{type:"array",cellDates:true});
+        objs=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:"",raw:true});
+      }else objs=parseCSV(rd.result);
+      var res=toRows(objs);
+      state.rows=res.rows;state.source="file";state.fileName=name;state.skipped=res.skipped;
+      resetFilters();render();
+    }catch(e){showError(e.message)}
+  };
+  if(ext==="xlsx"||ext==="xls")rd.readAsArrayBuffer(file);else rd.readAsText(file,"utf-8");
+}
+function showError(msg){var b=$("banner");b.className="banner";b.innerHTML="<b>No se pudo cargar el archivo.</b> "+esc(msg)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+/* ---------- filtros ---------- */
+function uniq(k){var s={};state.rows.forEach(function(r){s[r[k]]=(s[r[k]]||0)+1});return Object.keys(s).sort(function(a,b){return s[b]-s[a]})}
+function fillSelect(id,k){
+  var sel=$(id),vals=uniq(k);
+  if(k==="prioridad"){var o=["Alta","Media","Baja"];vals.sort(function(a,b){var ia=o.indexOf(a),ib=o.indexOf(b);return (ia<0?9:ia)-(ib<0?9:ib)})}
+  sel.innerHTML='<option value="">Todos</option>'+vals.map(function(v){return '<option>'+esc(v)+'</option>'}).join("");
+}
+function resetFilters(){fillSelect("fProc","procedimiento");fillSelect("fPrio","prioridad");fillSelect("fEst","establecimiento")}
+function filtered(){
+  var p=$("fProc").value,pr=$("fPrio").value,e=$("fEst").value;
+  return state.rows.filter(function(r){return (!p||r.procedimiento===p)&&(!pr||r.prioridad===pr)&&(!e||r.establecimiento===e)});
+}
+
+/* ---------- estadística ---------- */
+function days(a,b){return Math.round((b-a)/DAY)}
+function median(a){if(!a.length)return null;var s=a.slice().sort(function(x,y){return x-y}),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2}
+function quant(a,q){if(!a.length)return null;var s=a.slice().sort(function(x,y){return x-y});return s[Math.min(s.length-1,Math.floor(q*s.length))]}
+function mean(a){return a.length?a.reduce(function(x,y){return x+y},0)/a.length:null}
+function r1(n){return n==null?"–":fmt(Math.round(n))}
+
+/* ---------- gráficos SVG ---------- */
+var NS="http://www.w3.org/2000/svg";
+function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+function tipFor(box){var t=box.querySelector(".tip");if(!t){t=document.createElement("div");t.className="tip";t.hidden=true;box.appendChild(t)}return t}
+function showTip(box,x,y,html){var t=tipFor(box);t.innerHTML=html;t.hidden=false;var w=box.clientWidth;t.style.left=Math.max(60,Math.min(w-60,x))+"px";t.style.top=y+"px"}
+function hideTip(box){var t=box.querySelector(".tip");if(t)t.hidden=true}
+function niceStep(v){var raw=Math.max(v,1)/4,p=Math.pow(10,Math.floor(Math.log10(raw))),n=raw/p;return Math.max(1,(n<=1?1:n<=2?2:n<=5?5:10)*p)}
+function niceMax(v){var st=niceStep(v);return Math.max(st,Math.ceil(v/st)*st)}
+function roundTopRect(x,y,w,h,r){r=Math.min(r,w/2,h);return "M"+x+","+(y+h)+"V"+(y+r)+"Q"+x+","+y+" "+(x+r)+","+y+"H"+(x+w-r)+"Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+"V"+(y+h)+"Z"}
+function roundRightRect(x,y,w,h,r){r=Math.min(r,h/2,w);return "M"+x+","+y+"H"+(x+w-r)+"Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+"V"+(y+h-r)+"Q"+(x+w)+","+(y+h)+" "+(x+w-r)+","+(y+h)+"H"+x+"Z"}
+
+function columnChart(box,items){ // items: {label,value,color,tip}
+  box.innerHTML="";
+  var W=Math.max(300,box.clientWidth||520),H=230,m={t:18,r:8,b:34,l:36};
+  var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Gráfico de columnas"},box);
+  var max=niceMax(Math.max.apply(null,items.map(function(d){return d.value}).concat([1])));
+  var iw=W-m.l-m.r,ih=H-m.t-m.b,bw=iw/items.length;
+  var st=niceStep(max);for(var v=0;v<=max+1e-9;v+=st){var y=m.t+ih-ih*v/max;
+    el("line",{x1:m.l,x2:W-m.r,y1:y,y2:y,stroke:v?"var(--grid)":"var(--axis)","stroke-width":1},svg);
+    el("text",{x:m.l-6,y:y+4,"text-anchor":"end"},svg).textContent=fmt(Math.round(v));}
+  items.forEach(function(d,i){
+    var h=ih*d.value/max,x=m.l+i*bw+2,w=Math.max(2,bw-4-Math.min(20,bw*0.25)),cx=m.l+i*bw+bw/2;x=cx-w/2;
+    if(h>0)el("path",{d:roundTopRect(x,m.t+ih-h,w,h,4),fill:d.color},svg);
+    if(d.value>0)el("text",{x:cx,y:m.t+ih-h-5,"text-anchor":"middle",class:"v"},svg).textContent=fmt(d.value);
+    var lt=el("text",{x:cx,y:H-m.b+16,"text-anchor":"middle"},svg);lt.textContent=d.label;if(bw<52)lt.setAttribute("style","font-size:9px");
+    var hit=el("rect",{x:m.l+i*bw,y:m.t,width:bw,height:ih,fill:"transparent"},svg);
+    hit.addEventListener("mousemove",function(){showTip(box,cx/W*box.clientWidth,(m.t+ih-h)/H*box.clientHeight,d.tip)});
+    hit.addEventListener("mouseleave",function(){hideTip(box)});
+  });
+}
+
+function barChart(box,items,color){ // horizontal: {label,value,sub,tip}
+  box.innerHTML="";
+  if(!items.length){box.innerHTML='<p class="desc">Sin casos pendientes.</p>';return}
+  var W=Math.max(300,box.clientWidth||520),rowH=30,m={t:4,r:96,b:4,l:Math.min(170,W*0.36)},H=m.t+m.b+rowH*items.length;
+  var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Gráfico de barras"},box);
+  var max=Math.max.apply(null,items.map(function(d){return d.value}))||1,iw=W-m.l-m.r;
+  el("line",{x1:m.l,x2:m.l,y1:m.t,y2:H-m.b,stroke:"var(--axis)"},svg);
+  items.forEach(function(d,i){
+    var y=m.t+i*rowH,w=iw*d.value/max,bh=16;
+    var lab=d.label.length>24?d.label.slice(0,23)+"…":d.label;
+    el("text",{x:m.l-8,y:y+rowH/2+4,"text-anchor":"end",class:"cat"},svg).textContent=lab;
+    if(w>0)el("path",{d:roundRightRect(m.l,y+(rowH-bh)/2,w,bh,4),fill:color},svg);
+    el("text",{x:m.l+w+6,y:y+rowH/2+4,class:"v"},svg).textContent=fmt(d.value)+(d.sub!=null?"  ("+d.sub+" d)":"");
+    var hit=el("rect",{x:0,y:y,width:W,height:rowH,fill:"transparent"},svg);
+    hit.addEventListener("mousemove",function(){showTip(box,(m.l+w/2)/W*box.clientWidth,(y+4)/H*box.clientHeight,d.tip)});
+    hit.addEventListener("mouseleave",function(){hideTip(box)});
+  });
+}
+
+function lineChart(box,labels,series){ // series: [{name,color,values}]
+  box.innerHTML="";
+  var W=Math.max(300,box.clientWidth||520),H=230,m={t:14,r:12,b:34,l:36};
+  var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Gráfico de líneas"},box);
+  var all=[];series.forEach(function(s){all=all.concat(s.values)});
+  var max=niceMax(Math.max.apply(null,all.concat([1]))),iw=W-m.l-m.r,ih=H-m.t-m.b,n=labels.length;
+  var X=function(i){return m.l+(n>1?iw*i/(n-1):iw/2)},Y=function(v){return m.t+ih-ih*v/max};
+  var st=niceStep(max);for(var v=0;v<=max+1e-9;v+=st){var y=Y(v);
+    el("line",{x1:m.l,x2:W-m.r,y1:y,y2:y,stroke:v?"var(--grid)":"var(--axis)"},svg);
+    el("text",{x:m.l-6,y:y+4,"text-anchor":"end"},svg).textContent=fmt(Math.round(v));}
+  var step=Math.ceil(n/(W<480?4:7));
+  labels.forEach(function(l,i){if((i%step===0&&n-1-i>=step)||i===n-1)el("text",{x:X(i),y:H-m.b+16,"text-anchor":i===0?"start":i===n-1?"end":"middle"},svg).textContent=l});
+  series.forEach(function(s){
+    el("path",{d:s.values.map(function(v,i){return (i?"L":"M")+X(i)+","+Y(v)}).join(""),fill:"none",stroke:s.color,"stroke-width":2,"stroke-linejoin":"round","stroke-linecap":"round"},svg);
+    var li=n-1;el("circle",{cx:X(li),cy:Y(s.values[li]),r:4,fill:s.color,stroke:"var(--surface)","stroke-width":2},svg);
+  });
+  var cross=el("line",{y1:m.t,y2:m.t+ih,stroke:"var(--axis)","stroke-dasharray":"3 3",visibility:"hidden"},svg);
+  var dots=series.map(function(s){return el("circle",{r:4,fill:s.color,stroke:"var(--surface)","stroke-width":2,visibility:"hidden"},svg)});
+  var hit=el("rect",{x:m.l,y:m.t,width:iw,height:ih,fill:"transparent"},svg);
+  hit.addEventListener("mousemove",function(ev){
+    var r=svg.getBoundingClientRect(),px=(ev.clientX-r.left)/r.width*W;
+    var i=Math.max(0,Math.min(n-1,Math.round((px-m.l)/iw*(n-1))));
+    cross.setAttribute("x1",X(i));cross.setAttribute("x2",X(i));cross.setAttribute("visibility","visible");
+    dots.forEach(function(d,k){d.setAttribute("cx",X(i));d.setAttribute("cy",Y(series[k].values[i]));d.setAttribute("visibility","visible")});
+    showTip(box,X(i)/W*box.clientWidth,m.t/H*box.clientHeight+10,"<div>"+labels[i]+"</div>"+series.map(function(s){return s.name+": <b>"+fmt(s.values[i])+"</b>"}).join("<br>"));
+  });
+  hit.addEventListener("mouseleave",function(){cross.setAttribute("visibility","hidden");dots.forEach(function(d){d.setAttribute("visibility","hidden")});hideTip(box)});
+}
+
+/* ---------- render ---------- */
+var MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+function render(){
+  var umbral=Math.max(1,parseInt($("fUmbral").value,10)||90);
+  var rows=filtered();
+  var pend=rows.filter(function(r){return r.estado==="Pendiente"});
+  var aten=rows.filter(function(r){return r.estado==="Atendida"&&r.atencion});
+  var canc=rows.filter(function(r){return r.estado==="Cancelada"});
+  pend.forEach(function(r){r.espera=days(r.ingreso,TODAY)});
+  aten.forEach(function(r){r.espera=days(r.ingreso,r.atencion)});
+  var wP=pend.map(function(r){return r.espera}),wA=aten.map(function(r){return r.espera});
+  var over=pend.filter(function(r){return r.espera>umbral}).length;
+  var d90=new Date(TODAY.getTime()-90*DAY);
+  var in90=rows.filter(function(r){return r.ingreso>=d90}).length;
+  var out90=aten.filter(function(r){return r.atencion>=d90}).length;
+
+  // banner
+  var b=$("banner");
+  if(state.source==="demo"){b.className="banner";b.innerHTML="<b>Datos de ejemplo.</b> Estas cifras son ficticias y solo muestran cómo funciona el tablero. Carga tu planilla para ver tu lista real.";}
+  else{b.className="banner ok";b.innerHTML="<b>"+esc(state.fileName)+"</b>: "+fmt(state.rows.length)+" registros cargados"+(state.skipped?" ("+fmt(state.skipped)+" filas omitidas por no tener fecha de ingreso válida)":"")+".";}
+  $("count").textContent=fmt(rows.length)+" registros con estos filtros";
+
+  var overShare=pend.length?over/pend.length:0;
+  var sevColor=overShare>0.5?"var(--critical)":overShare>0.25?"var(--serious)":overShare>0.1?"var(--warn)":"var(--good)";
+  var sevText=overShare>0.5?"Crítico":overShare>0.25?"Alto":overShare>0.1?"Moderado":"Bajo";
+  var balance=in90-out90;
+  $("kpis").innerHTML=[
+    {lbl:"Casos pendientes",val:fmt(pend.length),note:fmt(aten.length)+" atendidas y "+fmt(canc.length)+" canceladas en el registro"},
+    {lbl:"Mediana de espera actual",val:r1(median(wP)),unit:"días",note:"Promedio "+r1(mean(wP))+" d · P90 "+r1(quant(wP,0.9))+" d"},
+    {lbl:"Pendientes sobre "+umbral+" días",val:fmt(over),unit:pend.length?pct(overShare):"",pill:'<span class="pill"><i style="background:'+sevColor+'"></i>'+sevText+'</span>'},
+    {lbl:"Espera hasta la atención",val:r1(median(wA)),unit:"días",note:"Mediana de los casos ya atendidos"},
+    {lbl:"Balance últimos 90 días",val:(balance>0?"+":"")+fmt(balance),note:fmt(in90)+" ingresos · "+fmt(out90)+" atenciones",pill:'<span class="pill"><i style="background:'+(balance>0?"var(--serious)":"var(--good)")+'"></i>'+(balance>0?"La lista crece":"La lista baja")+'</span>'}
+  ].map(function(k){return '<div class="kpi"><span class="lbl">'+k.lbl+'</span><span class="val">'+k.val+(k.unit?'<small>'+k.unit+'</small>':'')+'</span>'+(k.pill||"")+(k.note?'<span class="note">'+k.note+'</span>':'')+'</div>'}).join("");
+
+  // histograma
+  var B=[[0,30],[31,60],[61,90],[91,120],[121,180],[181,365],[366,Infinity]];
+  columnChart($("cHist"),B.map(function(bk){
+    var c=wP.filter(function(w){return w>=bk[0]&&w<=bk[1]}).length;
+    var lab=bk[1]===Infinity?">365":bk[0]+"–"+bk[1];
+    return {label:lab,value:c,color:bk[0]>umbral?"var(--serious)":"var(--s1)",
+      tip:lab+" días: <b>"+fmt(c)+"</b> casos"+(pend.length?" ("+pct(c/pend.length)+")":"")};
+  }));
+
+  // flujo mensual (12 meses)
+  var labels=[],inV=[],outV=[];
+  for(var i=11;i>=0;i--){
+    var d=new Date(TODAY.getFullYear(),TODAY.getMonth()-i,1),e=new Date(d.getFullYear(),d.getMonth()+1,1);
+    labels.push(MESES[d.getMonth()]+" "+String(d.getFullYear()).slice(2));
+    inV.push(rows.filter(function(r){return r.ingreso>=d&&r.ingreso<e}).length);
+    outV.push(aten.filter(function(r){return r.atencion>=d&&r.atencion<e}).length);
+  }
+  lineChart($("cFlow"),labels,[{name:"Ingresos",color:"var(--s1)",values:inV},{name:"Atenciones",color:"var(--s2)",values:outV}]);
+
+  // por categoría
+  function byCat(k,order){
+    var g={};pend.forEach(function(r){(g[r[k]]=g[r[k]]||[]).push(r.espera)});
+    var keys=Object.keys(g);
+    if(order)keys.sort(function(a,b){var ia=order.indexOf(a),ib=order.indexOf(b);return (ia<0?9:ia)-(ib<0?9:ib)});
+    else keys.sort(function(a,b){return g[b].length-g[a].length});
+    return keys.map(function(key){var md=Math.round(median(g[key]));
+      return {label:key,value:g[key].length,sub:fmt(md),tip:esc(key)+": <b>"+fmt(g[key].length)+"</b> pendientes · mediana <b>"+fmt(md)+"</b> d · máx <b>"+fmt(Math.max.apply(null,g[key]))+"</b> d"}});
+  }
+  barChart($("cProc"),byCat("procedimiento"),"var(--s1)");
+  barChart($("cPrio"),byCat("prioridad",["Alta","Media","Baja"]),"var(--s1)");
+  barChart($("cEst"),byCat("establecimiento"),"var(--s1)");
+
+  var EB=[[0,39,"< 40"],[40,49,"40–49"],[50,59,"50–59"],[60,69,"60–69"],[70,200,"70 y más"]];
+  var withAge=pend.filter(function(r){return r.edad!=null});
+  if(withAge.length){
+    columnChart($("cEdad"),EB.map(function(t){var c=withAge.filter(function(r){return r.edad>=t[0]&&r.edad<=t[1]+0.999}).length;
+      return {label:t[2],value:c,color:"var(--s1)",tip:t[2]+" años: <b>"+fmt(c)+"</b> casos"}}));
+  }else $("cEdad").innerHTML='<p class="desc">El archivo no trae la columna de edad.</p>';
+
+  // tabla
+  var top=pend.slice().sort(function(a,b){return b.espera-a.espera}).slice(0,15);
+  $("tTop").innerHTML="<thead><tr><th>ID</th><th>Ingreso</th><th class='num'>Días</th><th>Prioridad</th><th>Procedimiento</th><th>Establecimiento</th></tr></thead><tbody>"+
+    (top.length?top.map(function(r){
+      var c=r.espera>umbral*2?"var(--critical)":r.espera>umbral?"var(--serious)":"var(--good)";
+      return "<tr><td>"+esc(r.id)+"</td><td>"+r.ingreso.toLocaleDateString("es-CL")+"</td><td class='num'><span class='sev' style='background:"+c+"'></span>"+fmt(r.espera)+"</td><td>"+esc(r.prioridad)+"</td><td>"+esc(r.procedimiento)+"</td><td>"+esc(r.establecimiento)+"</td></tr>";
+    }).join(""):"<tr><td colspan='6'>No hay casos pendientes.</td></tr>")+"</tbody>";
+
+  $("foot").textContent="Fecha de corte: "+TODAY.toLocaleDateString("es-CL",{day:"numeric",month:"long",year:"numeric"})+". Los días de espera de los casos pendientes se cuentan desde el ingreso hasta hoy; los de los casos atendidos, hasta la fecha de atención.";
+}
+
+/* ---------- eventos ---------- */
+$("btnLoad").addEventListener("click",function(){$("file").click()});
+$("file").addEventListener("change",function(e){if(e.target.files[0])loadFile(e.target.files[0]);e.target.value=""});
+$("btnDemo").addEventListener("click",function(){state.rows=demoRows();state.source="demo";resetFilters();render()});
+["fProc","fPrio","fEst","fUmbral"].forEach(function(id){$(id).addEventListener("input",render)});
+var drop=$("drop");
+["dragenter","dragover"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();drop.classList.add("over")})});
+["dragleave","drop"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();if(t==="drop"||e.target===drop)drop.classList.remove("over")})});
+document.addEventListener("drop",function(e){var f=e.dataTransfer&&e.dataTransfer.files[0];if(f)loadFile(f)});
+var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(render,150)});
+
+state.rows=demoRows();resetFilters();render();
+})();
+</script>
+
+</html>
